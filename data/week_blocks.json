@@ -1,0 +1,62 @@
+[
+  {
+    "week_start": "2026-05-25",
+    "block1_surgeon": "brito",
+    "block2_surgeon": "carlton",
+    "icu_surgeon": "eischen"
+  },
+  {
+    "week_start": "2026-06-01",
+    "block1_surgeon": "eischen",
+    "block2_surgeon": "hayashi",
+    "icu_surgeon": "brito"
+  },
+  {
+    "week_start": "2026-06-08",
+    "block1_surgeon": "furuta",
+    "block2_surgeon": "inouye",
+    "icu_surgeon": "carlton"
+  },
+  {
+    "week_start": "2026-06-15",
+    "block1_surgeon": "musika",
+    "block2_surgeon": "ra",
+    "icu_surgeon": "yong"
+  },
+  {
+    "week_start": "2026-06-22",
+    "block1_surgeon": "salotto",
+    "block2_surgeon": "yong",
+    "icu_surgeon": "musika"
+  },
+  {
+    "week_start": "2026-06-29",
+    "block1_surgeon": "furuta",
+    "block2_surgeon": "hayashi",
+    "icu_surgeon": "inouye"
+  },
+  {
+    "week_start": "2026-07-06",
+    "block1_surgeon": "brito",
+    "block2_surgeon": "carlton",
+    "icu_surgeon": "ra"
+  },
+  {
+    "week_start": "2026-07-13",
+    "block1_surgeon": "eischen",
+    "block2_surgeon": "musika",
+    "icu_surgeon": "takanishi"
+  },
+  {
+    "week_start": "2026-07-20",
+    "block1_surgeon": "salotto",
+    "block2_surgeon": "yong",
+    "icu_surgeon": "inouye"
+  },
+  {
+    "week_start": "2026-07-27",
+    "block1_surgeon": "furuta",
+    "block2_surgeon": "hayashi",
+    "icu_surgeon": "takanishi"
+  }
+]
