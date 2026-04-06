@@ -447,7 +447,7 @@ elif page == "⚡  Generate Schedule":
                 else:               return "background-color:#fee2e2;color:#991b1b"
 
             st.dataframe(
-                df_summary.style.applymap(colour_diff, subset=["Diff"]).format({"FTE": "{:.2f}"}),
+                df_summary.style.map(colour_diff, subset=["Diff"]).format({"FTE": "{:.2f}"}),
                 use_container_width=True, hide_index=True,
             )
 
