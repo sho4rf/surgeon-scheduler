@@ -38,7 +38,7 @@ class Surgeon:
     target_icu_day: Optional[int] = None
     target_night_mth: Optional[int] = None   # Mon-Thu nights
     target_night_fss: Optional[int] = None   # Fri-Sat-Sun nights
-    # Shift adjustment (e.g. Furuta = -2)
+    # Shift adjustment per 4 weeks / month (e.g. Furuta = -2)
     shift_adjust: int = 0
     # Max consecutive Tr Night shifts (3 = standard FSS/MTW block)
     max_consecutive_nights: int = 3

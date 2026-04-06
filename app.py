@@ -391,17 +391,50 @@ elif page == "⚡  Generate Schedule":
             monthly_budget = 14.0
             months         = sorted({d.date[:7] for d in schedule})
 
+            # PTO counts excluding weekends and US holidays
+            import holidays as _holidays
+            from datetime import date as _date
+            from scheduler.data_store import load_pto
+            us_holidays = _holidays.US(years=range(start_date.year, end_date.year + 1))
+            pto_list = load_pto()
+            def _workday_pto_count(surgeon_id):
+                count = 0
+                for p in pto_list:
+                    if p.surgeon_id != surgeon_id:
+                        continue
+                    d = _date.fromisoformat(p.date)
+                    if d.weekday() < 5 and d not in us_holidays:
+                        count += 1
+                return count
+
+            # Total credits in period per surgeon (TrEGS block=7, ICU block=7, Night=1)
+            def _total_shifts(surgeon_id):
+                return int(round(sum(engine.monthly_credits.get(surgeon_id, {}).values())))
+
             summary_data = []
             for s in surgeons:
                 mc             = engine.monthly_credits.get(s.id, {})
                 monthly_totals = [round(mc.get(m, 0)) for m in months]
                 avg            = sum(monthly_totals) / len(monthly_totals) if monthly_totals else 0
-                target         = round(monthly_budget * s.fte, 1)
+                # shift_adjust is per 4 weeks ≈ per month
+                target         = round(monthly_budget * s.fte + s.shift_adjust, 1)
                 night_count    = sum(1 for d in schedule if d.tr_egs_sicu_night == s.id)
-                row = {"Surgeon": s.name, "FTE": round(s.fte, 1), "Target/mo": int(round(target)), "Avg/mo": int(round(avg)), "Diff": int(round(avg - target))}
+                row = {
+                    "Surgeon": s.name,
+                    "FTE": s.fte,
+                    "Target/mo": int(round(target)),
+                    "Avg/mo": int(round(avg)),
+                    "Diff": int(round(avg - target)),
+                }
                 for m in months:
                     row[m[5:]] = round(mc.get(m, 0))
+                tregs_days = sum(1 for d in schedule if d.tregs_day == s.id)
+                icu_days   = sum(1 for d in schedule if d.icu_day == s.id)
+                row["TrEGS Days"] = tregs_days
+                row["ICU Days"]   = icu_days
                 row["Tr Nights"] = night_count
+                row["Total Credits"] = _total_shifts(s.id)
+                row["PTO (workdays)"] = _workday_pto_count(s.id)
                 summary_data.append(row)
 
             st.markdown("### Shift Credit Summary")
@@ -414,7 +447,7 @@ elif page == "⚡  Generate Schedule":
                 else:               return "background-color:#fee2e2;color:#991b1b"
 
             st.dataframe(
-                df_summary.style.applymap(colour_diff, subset=["Diff"]),
+                df_summary.style.applymap(colour_diff, subset=["Diff"]).format({"FTE": "{:.2f}"}),
                 use_container_width=True, hide_index=True,
             )
 
