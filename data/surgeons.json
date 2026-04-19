@@ -7,9 +7,10 @@
     "can_do_icu": true,
     "target_tregs_day": 14,
     "target_icu_day": 7,
-    "target_night_mth": 6,
-    "target_night_fss": 3,
+    "target_night_mth": 1,
+    "target_night_fss": 1,
     "shift_adjust": 0,
+    "color": "#3b82f6",
     "notes": ""
   },
   {
@@ -20,9 +21,10 @@
     "can_do_icu": true,
     "target_tregs_day": 14,
     "target_icu_day": 7,
-    "target_night_mth": 4,
-    "target_night_fss": 3,
+    "target_night_mth": 1,
+    "target_night_fss": 1,
     "shift_adjust": 0,
+    "color": "#f59e0b",
     "notes": ""
   },
   {
@@ -33,9 +35,10 @@
     "can_do_icu": true,
     "target_tregs_day": 14,
     "target_icu_day": 7,
-    "target_night_mth": 5,
-    "target_night_fss": 3,
+    "target_night_mth": 1,
+    "target_night_fss": 1,
     "shift_adjust": 0,
+    "color": "#ef4444",
     "notes": ""
   },
   {
@@ -46,9 +49,10 @@
     "can_do_icu": false,
     "target_tregs_day": 21,
     "target_icu_day": 0,
-    "target_night_mth": 4,
-    "target_night_fss": 3,
+    "target_night_mth": 1,
+    "target_night_fss": 1,
     "shift_adjust": -2,
+    "color": "#10b981",
     "notes": ""
   },
   {
@@ -57,11 +61,12 @@
     "fte": 1.0,
     "can_do_trauma": true,
     "can_do_icu": true,
-    "target_tregs_day": 21,
-    "target_icu_day": 0,
-    "target_night_mth": 4,
-    "target_night_fss": 3,
+    "target_tregs_day": 14,
+    "target_icu_day": 7,
+    "target_night_mth": 1,
+    "target_night_fss": 1,
     "shift_adjust": 0,
+    "color": "#8b5cf6",
     "notes": ""
   },
   {
@@ -73,8 +78,9 @@
     "target_tregs_day": 7,
     "target_icu_day": 14,
     "target_night_mth": 0,
-    "target_night_fss": 3,
+    "target_night_fss": 1,
     "shift_adjust": 0,
+    "color": "#f97316",
     "notes": ""
   },
   {
@@ -85,9 +91,10 @@
     "can_do_icu": true,
     "target_tregs_day": 14,
     "target_icu_day": 7,
-    "target_night_mth": 6,
-    "target_night_fss": 3,
+    "target_night_mth": 1,
+    "target_night_fss": 1,
     "shift_adjust": 0,
+    "color": "#06b6d4",
     "notes": ""
   },
   {
@@ -96,11 +103,12 @@
     "fte": 0.6,
     "can_do_trauma": true,
     "can_do_icu": true,
-    "target_tregs_day": 7,
-    "target_icu_day": 7,
-    "target_night_mth": 2,
-    "target_night_fss": 3,
+    "target_tregs_day": 14,
+    "target_icu_day": 0,
+    "target_night_mth": 0,
+    "target_night_fss": 1,
     "shift_adjust": 0,
+    "color": "#ec4899",
     "notes": ""
   },
   {
@@ -111,9 +119,10 @@
     "can_do_icu": false,
     "target_tregs_day": 14,
     "target_icu_day": 0,
-    "target_night_mth": 4,
-    "target_night_fss": 3,
+    "target_night_mth": 1,
+    "target_night_fss": 1,
     "shift_adjust": 0,
+    "color": "#84cc16",
     "notes": ""
   },
   {
@@ -124,15 +133,16 @@
     "can_do_icu": true,
     "target_tregs_day": 14,
     "target_icu_day": 7,
-    "target_night_mth": 5,
-    "target_night_fss": 3,
+    "target_night_mth": 1,
+    "target_night_fss": 1,
     "shift_adjust": 0,
+    "color": "#6366f1",
     "notes": ""
   },
   {
     "id": "takanishi",
     "name": "Takanishi",
-    "fte": 0.0,
+    "fte": 0.4,
     "can_do_trauma": false,
     "can_do_icu": true,
     "target_tregs_day": 0,
@@ -140,6 +150,7 @@
     "target_night_mth": 0,
     "target_night_fss": 0,
     "shift_adjust": 0,
+    "color": "#14b8a6",
     "notes": "ICU-only role. Not in trauma call pool."
   }
 ]

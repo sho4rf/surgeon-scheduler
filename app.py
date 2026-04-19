@@ -244,15 +244,16 @@ elif page == "👤  Surgeons":
         "Shift Adj": s.shift_adjust,
         "TrEGS/10wk": s.target_tregs_day,
         "ICU/10wk":   s.target_icu_day,
-        "Night MTh":  s.target_night_mth,
+        "Night MTWT": s.target_night_mth,
         "Night FSS":  s.target_night_fss,
-        "Max Consec Nights": s.max_consecutive_nights,
+
         "Notes": s.notes,
     } for s in surgeons])
     st.dataframe(
         df.style.format({"FTE": "{:.2f}"}),
         use_container_width=True,
         hide_index=True,
+        height=(len(surgeons) + 1) * 35 + 10,
     )
 
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
@@ -269,16 +270,16 @@ elif page == "👤  Surgeons":
             fte       = st.number_input("FTE", 0.0, 1.0, s.fte, 0.05)
             can_trauma = st.checkbox("Can do Trauma", s.can_do_trauma)
             can_icu    = st.checkbox("Can do ICU",    s.can_do_icu)
-            shift_adj  = st.number_input("Shift Adjustment", value=s.shift_adjust, step=1)
+            shift_adj  = st.number_input("Shift Adjustment /4wks", value=s.shift_adjust, step=1)
         with col2:
             st.markdown("**Day Targets / 10 wk**")
             t_tregs = st.number_input("TrEGS Day", value=s.target_tregs_day or 0, step=1)
             t_icu   = st.number_input("ICU Day",   value=s.target_icu_day   or 0, step=1)
         with col3:
             st.markdown("**Night Targets / 10 wk**")
-            t_mth      = st.number_input("Night Mon–Thu", value=s.target_night_mth or 0, step=1)
+            t_mth      = st.number_input("Night Mon–Thu (4 days)", value=s.target_night_mth or 0, step=1)
             t_fss      = st.number_input("Night Fri–Sun", value=s.target_night_fss or 0, step=1)
-            max_nights = st.number_input("Max Consecutive Nights", 1, 7, s.max_consecutive_nights, 1)
+            color      = st.color_picker("Color", s.color)
             notes      = st.text_input("Notes", s.notes)
 
     if st.button("Save Changes", type="primary"):
@@ -286,7 +287,8 @@ elif page == "👤  Surgeons":
         s.shift_adjust = shift_adj
         s.target_tregs_day = int(t_tregs); s.target_icu_day = int(t_icu)
         s.target_night_mth = int(t_mth);   s.target_night_fss = int(t_fss)
-        s.max_consecutive_nights = int(max_nights); s.notes = notes
+        s.color = color
+        s.notes = notes
         save_surgeons(surgeons)
         st.success(f"Saved {s.name}")
 
@@ -387,6 +389,35 @@ elif page == "⚡  Generate Schedule":
             st.success(f"Generated {len(schedule)} days of schedule!")
             st.balloons()
 
+            # Possible schedule patterns given current PTO
+            avail = engine.availability_log
+            if avail:
+                from math import prod
+                total_patterns = prod(a["week_combos"] for a in avail)
+                bottleneck     = min(avail, key=lambda a: a["week_combos"])
+                if total_patterns == 0:
+                    pattern_label = "0 — impossible!"
+                    delta_color   = "inverse"
+                elif total_patterns == 1:
+                    pattern_label = "1 — no flexibility"
+                    delta_color   = "inverse"
+                else:
+                    pattern_label = f"{total_patterns:,}"
+                    delta_color   = "normal"
+
+                c1, c2 = st.columns(2)
+                c1.metric(
+                    "Possible Schedule Patterns",
+                    pattern_label,
+                    help="Total number of valid surgeon assignment combinations across all weeks, given current PTO",
+                )
+                c2.metric(
+                    "Most Constrained Week",
+                    bottleneck["week"],
+                    delta=f"{bottleneck['week_combos']} pattern{'s' if bottleneck['week_combos'] != 1 else ''}",
+                    help="The week with fewest possible combinations",
+                )
+
             surgeons      = load_surgeons()
             monthly_budget = 14.0
             months         = sorted({d.date[:7] for d in schedule})
@@ -413,43 +444,137 @@ elif page == "⚡  Generate Schedule":
 
             summary_data = []
             for s in surgeons:
-                mc             = engine.monthly_credits.get(s.id, {})
-                monthly_totals = [round(mc.get(m, 0)) for m in months]
-                avg            = sum(monthly_totals) / len(monthly_totals) if monthly_totals else 0
-                # shift_adjust is per 4 weeks ≈ per month
-                target         = round(monthly_budget * s.fte + s.shift_adjust, 1)
-                night_count    = sum(1 for d in schedule if d.tr_egs_sicu_night == s.id)
+                mc          = engine.monthly_credits.get(s.id, {})
+                mtwt_blocks = engine.mtwt_block_counts.get(s.id, 0)
+                fss_blocks  = engine.fss_block_counts.get(s.id, 0)
+                night_count = mtwt_blocks * 4 + fss_blocks * 3   # total night credits
+
+                # Achievable target = sum of role targets converted to credits
+                # TrEGS/ICU: 1 credit per day, Night: MTWT=4 credits, FSS=3 credits
+                role_target_10wk = (
+                    (s.target_tregs_day  or 0) +
+                    (s.target_icu_day    or 0) +
+                    (s.target_night_mth  or 0) * 4 +
+                    (s.target_night_fss  or 0) * 3 +
+                    s.shift_adjust
+                )
+                # Scale to actual period length.
+                # Use raw float (no intermediate rounding) so low-FTE surgeons like
+                # Takanishi get accurate targets: 0.4×14×2.5 = 14.0 (not 15 after rounding).
+                actual_weeks      = ((end_date - start_date).days + 1) / 7.0
+                target_4wks_raw   = s.fte * 14 + s.shift_adjust          # float, e.g. 5.6
+                target_10wks_raw  = target_4wks_raw * 2.5                 # float, e.g. 14.0
+                target_period     = int(round(target_10wks_raw * actual_weeks / 10.0))
+                # Display columns: round for readability
+                target_4wks       = round(target_4wks_raw)
+                target_10wks      = round(target_10wks_raw)
+
                 row = {
-                    "Surgeon": s.name,
-                    "FTE": s.fte,
-                    "Target/mo": int(round(target)),
-                    "Avg/mo": int(round(avg)),
-                    "Diff": int(round(avg - target)),
+                    "Surgeon":     s.name,
+                    "FTE":         s.fte,
+                    "Target/4wks": target_4wks,
+                    "Target/10wks": target_10wks,
                 }
                 for m in months:
                     row[m[5:]] = round(mc.get(m, 0))
-                tregs_days = sum(1 for d in schedule if d.tregs_day == s.id)
-                icu_days   = sum(1 for d in schedule if d.icu_day == s.id)
-                row["TrEGS Days"] = tregs_days
-                row["ICU Days"]   = icu_days
-                row["Tr Nights"] = night_count
-                row["Total Credits"] = _total_shifts(s.id)
-                row["PTO (workdays)"] = _workday_pto_count(s.id)
+                tregs_credits = engine.block_week_counts.get(s.id, 0) * 7
+                icu_credits   = engine.icu_week_counts_result.get(s.id, 0) * 7
+                total_cred    = _total_shifts(s.id)
+                row["TrEGS"]          = tregs_credits
+                row["ICU"]            = icu_credits
+                row["MTWT"]           = mtwt_blocks
+                row["FSS"]            = fss_blocks
+                row["Tr Nights"]      = night_count
+                row["Total"]          = total_cred
+                row["Diff"]           = total_cred - target_period
+                row["PTO"]            = _workday_pto_count(s.id)
                 summary_data.append(row)
 
             st.markdown("### Shift Credit Summary")
             st.caption("Block week = 7 credits · Night = 1 credit")
             df_summary = pd.DataFrame(summary_data)
 
-            def colour_diff(val):
-                if abs(val) <= 2:   return "background-color:#dcfce7;color:#166534"
-                elif abs(val) <= 4: return "background-color:#fef9c3;color:#854d0e"
-                else:               return "background-color:#fee2e2;color:#991b1b"
-
-            st.dataframe(
-                df_summary.style.map(colour_diff, subset=["Diff"]).format({"FTE": "{:.2f}"}),
-                use_container_width=True, hide_index=True,
+            # Totals row — sum numeric columns, label text columns
+            totals = {}
+            for col in df_summary.columns:
+                if col == "Surgeon":
+                    totals[col] = "TOTAL"
+                elif col == "FTE":
+                    totals[col] = round(df_summary[col].sum(), 2)
+                else:
+                    try:
+                        totals[col] = df_summary[col].sum()
+                    except TypeError:
+                        totals[col] = ""
+            df_with_total = pd.concat(
+                [df_summary, pd.DataFrame([totals])], ignore_index=True
             )
+
+            def diff_bg(val):
+                try:
+                    v = int(val)
+                    if abs(v) <= 2:  return "#dcfce7", "#166534"
+                    elif abs(v) <= 5: return "#fef9c3", "#854d0e"
+                    else:             return "#fee2e2", "#991b1b"
+                except Exception:
+                    return "", ""
+
+            # Render as HTML table for precise column width control
+            cols = list(df_with_total.columns)
+            th_style = (
+                "background:#334155;color:#f1f5f9;font-size:11px;font-weight:700;"
+                "padding:5px 6px;text-align:center;white-space:nowrap;"
+                "border-bottom:2px solid #94a3b8;border-right:1px solid #475569;"
+            )
+            td_base = (
+                "font-size:11px;padding:4px 6px;text-align:center;color:#1e293b;"
+                "border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0;"
+            )
+
+            col_widths = {"Surgeon": 68, "FTE": 38, "Target/4wks": 52,
+                          "Target/10wks": 54, "Diff": 38, "PTO": 36,
+                          "TrEGS": 44, "ICU": 36, "MTWT": 40, "FSS": 36,
+                          "Tr Nights": 50, "Total": 40}
+
+            html = ['<div style="overflow-x:auto;border-radius:8px;border:1px solid #cbd5e1;">'
+                    '<table style="border-collapse:collapse;width:100%;font-family:sans-serif;">']
+            html.append("<thead><tr>")
+            for c in cols:
+                w = col_widths.get(c, 38)
+                html.append(f'<th style="{th_style}min-width:{w}px;max-width:{w}px;">{c}</th>')
+            html.append("</tr></thead><tbody>")
+
+            for i, row_data in df_with_total.iterrows():
+                is_total = (i == len(df_with_total) - 1)
+                row_bg = "#f8fafc" if i % 2 == 0 else "#ffffff"
+                if is_total:
+                    row_bg = "#1e293b"
+                html.append(f'<tr style="background:{row_bg};">')
+                for c in cols:
+                    val = row_data[c]
+                    w   = col_widths.get(c, 38)
+                    cell_extra = ""
+                    txt_color  = "#1e293b"
+                    if is_total:
+                        txt_color  = "#f1f5f9"
+                        cell_extra = "font-weight:700;"
+                    elif c == "Diff":
+                        bg, fg = diff_bg(val)
+                        if bg:
+                            cell_extra = f"background:{bg};font-weight:600;"
+                            txt_color  = fg
+                    if c == "FTE":
+                        disp = f"{val:.2f}" if isinstance(val, float) else val
+                    else:
+                        disp = "" if (val == "" or (isinstance(val, float) and pd.isna(val))) else val
+                    html.append(
+                        f'<td style="{td_base}{cell_extra}color:{txt_color};'
+                        f'min-width:{w}px;max-width:{w}px;">{disp}</td>'
+                    )
+                html.append("</tr>")
+            html.append("</tbody></table></div>")
+
+            st.markdown("\n".join(html), unsafe_allow_html=True)
 
 # ── View Schedule ─────────────────────────────────────────────────────────────
 elif page == "📋  View Schedule":
@@ -513,7 +638,28 @@ elif page == "📋  View Schedule":
             )
             df = df[mask]
 
-        st.dataframe(df, use_container_width=True, height=560, hide_index=True)
+        # Color-coded HTML table
+        color_map = {s.name: s.color for s in surgeons}
+        def colored_name(n):
+            if not n: return ""
+            c = color_map.get(n, "#94a3b8")
+            return (f'<span style="background:{c};color:#fff;border-radius:4px;'
+                    f'padding:1px 7px;font-size:12px;white-space:nowrap;">{n}</span>')
+
+        shift_cols = ["TrEGS Day","Office","ICU Day","Tr/EGS/SICU N","Tr D b/u","Tr N b/u"]
+        df_html = df.copy()
+        for col in shift_cols:
+            df_html[col] = df_html[col].apply(colored_name)
+
+        html_table = df_html.to_html(escape=False, index=False)
+        html_table = (
+            '<style>table{width:100%;border-collapse:collapse;font-size:13px}'
+            'th{background:#1e293b;color:#94a3b8;padding:6px 8px;text-align:left}'
+            'td{padding:5px 8px;border-bottom:1px solid #1e293b;vertical-align:middle}'
+            'tr:nth-child(even){background:#0f172a}tr:nth-child(odd){background:#1e293b22}'
+            '</style>' + html_table
+        )
+        st.markdown(html_table, unsafe_allow_html=True)
 
         st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
         st.markdown("### Export")
@@ -569,12 +715,7 @@ elif page == "🗓️  Calendar View":
             sel_month = st.selectbox("Month", month_labels, key="cal_month")
         sel_year, sel_month_num = map(int, sel_month.split("-"))
 
-        COLORS = [
-            "#3b82f6","#f59e0b","#ef4444","#10b981","#8b5cf6",
-            "#f97316","#06b6d4","#ec4899","#84cc16","#6366f1","#14b8a6",
-        ]
-        all_surgeons = [s.name for s in surgeons]
-        color_map    = {n: COLORS[i % len(COLORS)] for i, n in enumerate(all_surgeons)}
+        color_map = {s.name: s.color for s in surgeons}
         sched_map    = {d.date: d for d in schedule}
 
         def cell(ds):

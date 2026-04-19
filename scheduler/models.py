@@ -40,8 +40,7 @@ class Surgeon:
     target_night_fss: Optional[int] = None   # Fri-Sat-Sun nights
     # Shift adjustment per 4 weeks / month (e.g. Furuta = -2)
     shift_adjust: int = 0
-    # Max consecutive Tr Night shifts (3 = standard FSS/MTW block)
-    max_consecutive_nights: int = 3
+    color: str = "#6366f1"   # Hex color for UI display
     notes: str = ""
 
     @property
@@ -61,13 +60,15 @@ class Surgeon:
             "target_night_mth": self.target_night_mth,
             "target_night_fss": self.target_night_fss,
             "shift_adjust": self.shift_adjust,
+            "color": self.color,
             "notes": self.notes,
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "Surgeon":
         d = dict(d)
-        d.pop("icu_only", None)  # removed field; use can_do_trauma=False instead
+        d.pop("icu_only", None)              # removed field
+        d.pop("max_consecutive_nights", None) # removed field
         return cls(**d)
 
 
